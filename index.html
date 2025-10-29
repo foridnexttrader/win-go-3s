@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta charset="UTF-8" />
+  <title>forid0k</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap');
+
+    body {
+      font-family: 'Poppins', Arial, sans-serif;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: #f0f0f5;
+      padding: 30px;
+      max-width: 400px;
+      margin: 40px auto;
+      border-radius: 15px;
+      box-shadow: 0 15px 40px rgba(0,0,0,0.3);
+    }
+
+    h2 {
+      margin-bottom: 15px;
+      font-weight: 600;
+      font-size: 1.8rem;
+      text-align: center;
+      letter-spacing: 1.2px;
+      text-shadow: 0 2px 5px rgba(0,0,0,0.3);
+    }
+
+    /* Container for signal only */
+    #predictionBox {
+      margin-top: 20px;
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 15px;
+      padding: 25px 20px;
+      box-shadow: inset 0 0 15px rgba(255,255,255,0.2);
+      user-select: none;
+      min-height: 80px;
+      text-align: center;
+      position: relative;
+      color: #fff;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+    }
+
+    /* #predictionPeriod {
+      font-size: 3.2rem;
+      font-weight: 700;
+      color: #ffd700;
+      text-shadow: 0 0 12px #ffd700;
+      margin-bottom: 10px;
+      user-select: text;
+    } */
+
+    #predictionSignal {
+      font-size: 3rem;
+      font-weight: 700;
+      color: #00e676;
+      text-shadow: 0 0 10px #00e676;
+      user-select: text;
+    }
+
+    /* Hide predictionBox content when not active */
+    #predictionBox.hidden #predictionSignal {
+      opacity: 0;
+      transition: opacity 0.5s ease;
+      user-select: none;
+    }
+
+    #generateBtn {
+      margin-top: 25px;
+      padding: 12px 0;
+      font-size: 18px;
+      font-weight: 600;
+      cursor: pointer;
+      width: 100%;
+      border: none;
+      border-radius: 12px;
+      background: #ff6f61;
+      color: white;
+      box-shadow: 0 6px 15px rgba(255, 111, 97, 0.6);
+      transition: background 0.3s ease, box-shadow 0.3s ease;
+    }
+    #generateBtn:hover {
+      background: #ff4a3d;
+      box-shadow: 0 8px 20px rgba(255, 74, 61, 0.8);
+    }
+
+    h2.history-title {
+      margin-top: 40px;
+      font-size: 1.5rem;
+      color: #e0e0f0;
+      text-align: center;
+      letter-spacing: 1px;
+      text-shadow: 0 1px 3px rgba(0,0,0,0.4);
+    }
+
+    table {
+      border-collapse: separate;
+      border-spacing: 0 10px;
+      width: 100%;
+      margin-top: 20px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 15px;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+      overflow: hidden;
+      user-select: none;
+    }
+
+    thead tr {
+      background: #5a4e7c;
+      color: #fff;
+      font-weight: 600;
+      font-size: 1rem;
+      letter-spacing: 0.05em;
+    }
+
+    th, td {
+      padding: 12px 10px;
+      text-align: center;
+      font-weight: 500;
+      color: #ddd;
+    }
+
+    tbody tr {
+      background: rgba(255, 255, 255, 0.15);
+      transition: background 0.3s ease;
+      border-radius: 10px;
+    }
+
+    tbody tr:hover {
+      background: rgba(255, 255, 255, 0.3);
+    }
+
+    tbody tr td:nth-child(3) {
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    /* Color coding for color column */
+    tbody tr td.color-red {
+      color: #ff4a4a;
+      text-shadow: 0 0 5px #ff4a4a;
+    }
+    tbody tr td.color-green {
+      color: #00e676;
+      text-shadow: 0 0 5px #00e676;
+    }
+    tbody tr td.color-blue {
+      color: #42a5f5;
+      text-shadow: 0 0 5px #42a5f5;
+    }
+  </style>
+</head>
+<body>
+
+  <h2>Color Zone</h2>
+
+  <div id="predictionBox" class="hidden">
+    <!-- প্রেডিকশন নাম্বার ডিভ সরানো হয়েছে -->
+    <div id="predictionSignal">-</div>
+  </div>
+
+  <button id="generateBtn">Signal</button>
+
+  <h2 class="history-title">Latest History</h2>
+  <table id="historyTable">
+    <thead>
+      <tr>
+        <th>Period</th>
+        <th>Number</th>
+        <th>Color</th>
+      </tr>
+    </thead>
+    <tbody>
+      <!-- Latest 4 results will be inserted here -->
+    </tbody>
+  </table>
+
+  <script>
+    const API_URL = 'https://draw.ar-lottery01.com/WinGo/WinGo_30S/GetHistoryIssuePage.json';
+
+    let historyData = [];
+    let prediction = { signal: null };
+    let hideTimeout = null;
+
+    async function fetchHistory() {
+      try {
+        const res = await fetch(API_URL);
+        const json = await res.json();
+        if (json.code === 0 && json.data && json.data.list) {
+          historyData = json.data.list.slice(0, 40);
+          updateHistoryTable();
+        }
+      } catch (e) {
+        console.error('Error fetching history:', e);
+      }
+    }
+
+    function updateHistoryTable() {
+      const tbody = document.querySelector('#historyTable tbody');
+      tbody.innerHTML = '';
+      const latest4 = historyData.slice(0, 4);
+      latest4.forEach(item => {
+        const tr = document.createElement('tr');
+        let colorClass = '';
+        if (item.color) {
+          colorClass = 'color-' + item.color.toLowerCase();
+        }
+        tr.innerHTML = `
+          <td>${item.issueNumber}</td>
+          <td>${item.number}</td>
+          <td class="${colorClass}">${item.color}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function calculatePrediction() {
+      if (historyData.length === 0) return;
+
+      const sum = historyData.reduce((acc, item) => acc + Number(item.number), 0);
+      const avg = sum / historyData.length;
+
+      const signal = avg > 5 ? 'BIG' : 'SMALL';
+
+      prediction = { signal };
+    }
+
+    function showPrediction() {
+      const box = document.getElementById('predictionBox');
+      const signalDiv = document.getElementById('predictionSignal');
+
+      signalDiv.textContent = prediction.signal || '-';
+
+      box.classList.remove('hidden');
+
+      if (hideTimeout) clearTimeout(hideTimeout);
+
+      // BIG হলে 2 সেকেন্ড, SMALL হলে 2 সেকেন্ড দেখাবে
+      const displayTime = (prediction.signal === 'BIG') ? 2000 : 2000;
+
+      hideTimeout = setTimeout(() => {
+        box.classList.add('hidden');
+        signalDiv.textContent = '-';
+      }, displayTime);
+    }
+
+    document.getElementById('generateBtn').addEventListener('click', () => {
+      calculatePrediction();
+      showPrediction();
+    });
+
+    fetchHistory();
+    setInterval(fetchHistory, 1000);
+    setInterval(calculatePrediction, 2000);
+  </script>
+
+</body>
+</html>
